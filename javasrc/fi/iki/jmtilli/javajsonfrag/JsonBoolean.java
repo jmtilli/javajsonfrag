@@ -1,3 +1,4 @@
+package fi.iki.jmtilli.javajsonfrag;
 public class JsonBoolean extends JsonObject {
 	public final boolean b;
 	private JsonBoolean(boolean b)

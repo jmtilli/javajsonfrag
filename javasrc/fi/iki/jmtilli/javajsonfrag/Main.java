@@ -1,3 +1,4 @@
+package fi.iki.jmtilli.javajsonfrag;
 import java.io.*;
 import java.util.*;
 
@@ -10,7 +11,7 @@ public class Main {
 	};
 	public static void main(String[] args) throws Throwable
 	{
-		HashMap<Integer, Customer> customers =
+		final HashMap<Integer, Customer> customers =
 			new HashMap<Integer, Customer>();
 		if (args.length != 1)
 		{

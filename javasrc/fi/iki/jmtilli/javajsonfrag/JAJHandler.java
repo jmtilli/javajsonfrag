@@ -1,3 +1,4 @@
+package fi.iki.jmtilli.javajsonfrag;
 /*
  * Java API for JSON handler.
  *

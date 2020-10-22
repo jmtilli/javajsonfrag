@@ -1,2 +1,6 @@
 *.class
 .*.sw?
+/javadoc/
+/javajsonfrag-bin.zip
+/javajsonfrag-src.zip
+/javajsonfrag.jar

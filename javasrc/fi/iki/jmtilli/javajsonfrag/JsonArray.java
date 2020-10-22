@@ -1,3 +1,4 @@
+package fi.iki.jmtilli.javajsonfrag;
 import java.util.*;
 public class JsonArray extends JsonObject {
 	public final ArrayList<JsonObject> values =

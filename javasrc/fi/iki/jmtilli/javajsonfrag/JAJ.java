@@ -1,3 +1,4 @@
+package fi.iki.jmtilli.javajsonfrag;
 import java.util.*;
 import java.io.*;
 
