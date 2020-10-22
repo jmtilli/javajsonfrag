@@ -1,46 +1,45 @@
 import java.io.*;
+import java.util.*;
 
 public class Main {
+	public static class Customer {
+		public int customerId;
+		public String name;
+		public int accountCount;
+		public double totalBalance;
+	};
 	public static void main(String[] args) throws Throwable
 	{
+		HashMap<Integer, Customer> customers =
+			new HashMap<Integer, Customer>();
 		if (args.length != 1)
 		{
 			throw new RuntimeException("usage: java Main f.json");
 		}
 		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(args[0])));
-		JAJ.parse(br, new JAJHandler() {
-			public void startDict(String dictKey)
+		JAJ.parse(br, new JsonFragmentHandler() {
+			public void startJsonDict(String dictKey)
 			{
-				System.out.println(dictKey + ": " + "{");
+				if (is("customers", (String)null))
+				{
+					super.startFragmentCollection();
+				}
 			}
-			public void endDict(String dictKey)
+			public void endJsonDict(String dictKey, JsonObject js)
 			{
-				System.out.println(dictKey + ": " + "}");
-			}
-			public void startArray(String dictKey)
-			{
-				System.out.println(dictKey + ": " + "[");
-			}
-			public void endArray(String dictKey)
-			{
-				System.out.println(dictKey + ": " + "]");
-			}
-			public void handleNull(String dictKey)
-			{
-				System.out.println(dictKey + ": " + "null");
-			}
-			public void handleString(String dictKey, String s)
-			{
-				System.out.println(dictKey + ": " + '"' + s + '"');
-			}
-			public void handleNumber(String dictKey, double d)
-			{
-				System.out.println(dictKey + ": " + d);
-			}
-			public void handleBoolean(String dictKey, boolean b)
-			{
-				System.out.println(dictKey + ": " + b);
+				if (is("customers", (String)null))
+				{
+					Customer c = new Customer();
+					JsonDict dict = (JsonDict)js;
+					c.customerId = (int)((JsonNumber)dict.values.get("id")).d;
+					c.accountCount = (int)((JsonNumber)dict.values.get("accountCount")).d;
+					c.totalBalance = ((JsonNumber)dict.values.get("totalBalance")).d;
+					c.name = ((JsonString)dict.values.get("name")).s;
+					customers.put(c.customerId, c);
+				}
 			}
 		});
+		System.out.println(customers.get(1).name);
+		System.out.println(customers.get(2).name);
 	}
 };
