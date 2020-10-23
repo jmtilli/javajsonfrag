@@ -1,7 +1,49 @@
 package fi.iki.jmtilli.javajsonfrag;
 import java.util.*;
+import java.io.*;
 
 public class JsonFragmentHandler implements JAJHandler {
+	public static JsonObject parseWhole(BufferedReader r) throws IOException
+	{
+		WholeJsonHandler whole = new WholeJsonHandler();
+		JAJ.parse(r, whole);
+		return whole.obj;
+	}
+	private static class WholeJsonHandler extends JsonFragmentHandler {
+		private JsonObject obj = null;
+		public void startJsonDict(String dictKey)
+		{
+			startFragmentCollection();
+		}
+		public void endJsonDict(String dictKey, JsonDict js)
+		{
+			obj = js;
+		}
+		public void startJsonArray(String dictKey)
+		{
+			startFragmentCollection();
+		}
+		public void endJsonArray(String dictKey, JsonArray js)
+		{
+			obj = js;
+		}
+		public void handleJsonNull(String dictKey)
+		{
+			obj = null;
+		}
+		public void handleJsonString(String dictKey, String s)
+		{
+			obj = new JsonString(s);
+		}
+		public void handleJsonNumber(String dictKey, double d)
+		{
+			obj = new JsonNumber(d);
+		}
+		public void handleJsonBoolean(String dictKey, boolean b)
+		{
+			obj = b ? JsonBoolean.TRUE : JsonBoolean.FALSE;
+		}
+	}
 	private static class JsonStack {
 		private final ArrayList<String> path = new ArrayList<String>();
 		public void push(String name)
