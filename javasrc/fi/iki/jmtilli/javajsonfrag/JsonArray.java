@@ -8,6 +8,10 @@ public class JsonArray extends JsonObject {
 		NO_NULL,
 		NULL,
 	};
+	public final int getSize()
+	{
+		return values.size();
+	}
 	public final JsonObject getObject(int index, NullMode nullMode)
 	{
 		if (index < 0)
