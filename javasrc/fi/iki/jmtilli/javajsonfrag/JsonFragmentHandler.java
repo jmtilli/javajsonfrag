@@ -186,7 +186,7 @@ public class JsonFragmentHandler implements JAJHandler {
 	{
 	}
 	// To be overridden
-	public void endJsonDict(String dictKey, JsonObject js)
+	public void endJsonDict(String dictKey, JsonDict js)
 	{
 	}
 	// To be overridden
@@ -194,7 +194,7 @@ public class JsonFragmentHandler implements JAJHandler {
 	{
 	}
 	// To be overridden
-	public void endJsonArray(String dictKey, JsonObject js)
+	public void endJsonArray(String dictKey, JsonArray js)
 	{
 	}
 	// To be overridden
@@ -247,7 +247,7 @@ public class JsonFragmentHandler implements JAJHandler {
 		// Note: h may have changed here
 		if (h == null)
 		{
-			endJsonDict(dictKey, js);
+			endJsonDict(dictKey, (JsonDict)js);
 		}
 		s.pop(dictKey);
 	}
@@ -285,7 +285,7 @@ public class JsonFragmentHandler implements JAJHandler {
 		// Note: h may have changed here
 		if (h == null)
 		{
-			endJsonArray(dictKey, js);
+			endJsonArray(dictKey, (JsonArray)js);
 		}
 		s.pop(dictKey);
 	}

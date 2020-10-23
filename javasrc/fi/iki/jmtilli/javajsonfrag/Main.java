@@ -26,7 +26,7 @@ public class Main {
 					super.startFragmentCollection();
 				}
 			}
-			public void endJsonDict(String dictKey, JsonObject js)
+			public void endJsonDict(String dictKey, JsonDict js)
 			{
 				if (is("customers", (String)null))
 				{
