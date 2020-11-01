@@ -6,6 +6,334 @@ public class JAJ {
 	private static enum Expect {
 		FIRST_KEY, KEY, COLON, COMMA, FIRST_VALUE, VALUE
 	};
+	private static class ATOF {
+		private static enum Mode {
+			PERIOD_OR_EXPONENT_CHAR,
+			MANTISSA_SIGN,
+			MANTISSA_FIRST,
+			MANTISSA,
+			MANTISSA_FRAC_FIRST,
+			MANTISSA_FRAC,
+			EXPONENT_CHAR,
+			EXPONENT_SIGN,
+			EXPONENT_FIRST,
+			EXPONENT,
+			DONE,
+		};
+		public final StringBuilder b = new StringBuilder();
+		private Mode mode = Mode.MANTISSA_SIGN;
+		private boolean exponent_offset_set = false;
+		private long exponent_offset = 0;
+		private long skip_offset = 0;
+		private long exponent = 0;
+		private boolean expnegative = false;
+		private boolean ended = false;
+
+		public void reset()
+		{
+			b.setLength(0);
+			mode = Mode.MANTISSA_SIGN;
+			exponent_offset_set = false;
+			exponent_offset = 0;
+			skip_offset = 0;
+			exponent = 0;
+			expnegative = false;
+			ended = false;
+		}
+
+		private void markNegative()
+		{
+			if (b.length() != 0)
+			{
+				throw new Error("invalid state");
+			}
+			b.append('-');
+		}
+
+		private void emitDigit(char digit)
+		{
+			int digitint = (digit - '0');
+			if (digitint < 0 || digitint > 9)
+			{
+				throw new Error("not a digit: " + digit);
+			}
+			if (digitint == 0 && (b.length() == 0 || (b.length() == 1 && b.charAt(0) == '-')))
+			{
+				if (exponent_offset_set && exponent_offset < 0)
+				{
+					exponent_offset--;
+				}
+				return;
+			}
+			if (b.length() >= 64 - 6)
+			{
+				if (!exponent_offset_set)
+				{
+					if (skip_offset == Long.MAX_VALUE)
+					{
+						// Uh-oh. Let's hope this never happens.
+						// It's a huge honking number unless it has
+						// a very negative exponent.
+						return;
+					}
+					skip_offset++;
+				}
+				return;
+			}
+			b.append(digit);
+			if (b.length() == 1 || (b.length() == 2 && b.charAt(0) == '-'))
+			{
+				b.append('.');
+			}
+		}
+
+		private void storePeriod()
+		{
+			int periodbufsiz;
+			if (b.length() == 0 || (b.length() == 1 && b.charAt(0) == '-'))
+			{
+				exponent_offset = -1;
+				exponent_offset_set = true;
+				return;
+			}
+			if (b.charAt(0) == '-')
+			{
+				periodbufsiz = 3;
+			}
+			else
+			{
+				periodbufsiz = 2;
+			}
+			exponent_offset = b.length() - periodbufsiz + skip_offset;
+			exponent_offset_set = true;
+		}
+
+		private void setExponent(long exponent)
+		{
+			exponent_offset += exponent;
+		}
+
+		private double getNumber()
+		{
+			int nch;
+			if (!exponent_offset_set)
+			{
+				storePeriod();
+				emitDigit('0');
+			}
+			if (ended)
+			{
+				return Double.valueOf(b.toString());
+			}
+			if (b.length() == 0 || (b.length() == 1 && b.charAt(0) == '-'))
+			{
+				b.append('0');
+				b.append('.');
+				b.append('0');
+			}
+			b.append('e');
+			if (exponent_offset > 999)
+			{
+				exponent_offset = 999;
+			}
+			else if (exponent_offset < -999)
+			{
+				exponent_offset = -999;
+			}
+			b.append("" + exponent_offset);
+			ended = true;
+			return Double.valueOf(b.toString());
+		}
+
+		public double end()
+		{
+			setExponent(expnegative ? (-exponent) : exponent);
+			mode = Mode.DONE;
+			exponent = 0;
+			return getNumber();
+		}
+
+		public boolean feedChar(char ch)
+		{
+			if (mode == Mode.MANTISSA_SIGN && ch == '+')
+			{
+				mode = Mode.MANTISSA_FIRST;
+				return true;
+			}
+			if (mode == Mode.MANTISSA_SIGN && ch == '-')
+			{
+				markNegative();
+				mode = Mode.MANTISSA_FIRST;
+				return true;
+			}
+			if (mode == Mode.MANTISSA_SIGN && ch == '.')
+			{
+				mode = Mode.MANTISSA_FIRST;
+			}
+			if (mode == Mode.MANTISSA_SIGN &&
+			    (ch == '0' || ch == '1' || ch == '2' ||
+			     ch == '3' || ch == '4' || ch == '5' ||
+			     ch == '6' || ch == '7' || ch == '8' ||
+			     ch == '9'))
+			{
+				mode = Mode.MANTISSA_FIRST;
+			}
+			if (mode == Mode.MANTISSA_FIRST && ch == '0')
+			{
+				emitDigit(ch);
+				mode = Mode.PERIOD_OR_EXPONENT_CHAR;
+				return true;
+			}
+			if (mode == Mode.PERIOD_OR_EXPONENT_CHAR && (ch == 'e' || ch == 'E'))
+			{
+				mode = Mode.EXPONENT_CHAR;
+			}
+			if (mode == Mode.PERIOD_OR_EXPONENT_CHAR && ch == '.')
+			{
+				mode = Mode.MANTISSA;
+			}
+			if (mode == Mode.EXPONENT_CHAR)
+			{
+				if (ch == 'e' || ch == 'E')
+				{
+					if (!exponent_offset_set)
+					{
+						storePeriod();
+						emitDigit('0');
+					}
+					mode = Mode.EXPONENT_SIGN;
+					return true;
+				}
+				throw new Error("foo");
+			}
+			if (mode == Mode.MANTISSA || mode == Mode.MANTISSA_FIRST)
+			{
+				mode = Mode.MANTISSA;
+				if (ch == '0' || ch == '1' || ch == '2' ||
+				    ch == '3' || ch == '4' || ch == '5' ||
+				    ch == '6' || ch == '7' || ch == '8' ||
+				    ch == '9')
+				{
+					emitDigit(ch);
+					return true;
+				}
+				if (ch == '.')
+				{
+					storePeriod();
+					mode = Mode.MANTISSA_FRAC_FIRST;
+					return true;
+				}
+				if (ch == 'e' || ch == 'E')
+				{
+					if (!exponent_offset_set)
+					{
+						storePeriod();
+						emitDigit('0');
+					}
+					mode = Mode.EXPONENT_SIGN;
+					return true;
+				}
+				mode = Mode.DONE;
+				return false;
+			}
+			if (mode == Mode.MANTISSA_FRAC || mode == Mode.MANTISSA_FRAC_FIRST)
+			{
+				if (ch == '0' || ch == '1' || ch == '2' ||
+				    ch == '3' || ch == '4' || ch == '5' ||
+				    ch == '6' || ch == '7' || ch == '8' ||
+				    ch == '9')
+				{
+					emitDigit(ch);
+					mode = Mode.MANTISSA_FRAC;
+					return true;
+				}
+				if (mode == Mode.MANTISSA_FRAC_FIRST)
+				{
+					throw new Error("foo");
+				}
+				if (ch == 'e' || ch == 'E')
+				{
+					if (!exponent_offset_set)
+					{
+						storePeriod();
+						emitDigit('0');
+					}
+					mode = Mode.EXPONENT_SIGN;
+					return true;
+				}
+				mode = Mode.DONE;
+				return false;
+			}
+			if (mode == Mode.EXPONENT_SIGN)
+			{
+				if (ch == '+')
+				{
+					expnegative = false;
+					mode = Mode.EXPONENT_FIRST;
+					return true;
+				}
+				if (ch == '-')
+				{
+					expnegative = true;
+					mode = Mode.EXPONENT_FIRST;
+					return true;
+				}
+				if (ch == '0' || ch == '1' || ch == '2' ||
+				    ch == '3' || ch == '4' || ch == '5' ||
+				    ch == '6' || ch == '7' || ch == '8' ||
+				    ch == '9')
+				{
+					if (exponent > (Long.MAX_VALUE - 9)/10)
+					{
+						// prevent overflow
+						return true;
+					}
+					exponent *= 10;
+					exponent += (ch - '0');
+					mode = Mode.EXPONENT;
+					return true;
+				}
+				throw new Error("junk");
+			}
+			if (mode == Mode.EXPONENT_FIRST || mode == Mode.EXPONENT)
+			{
+				if (ch == '0' || ch == '1' || ch == '2' ||
+				    ch == '3' || ch == '4' || ch == '5' ||
+				    ch == '6' || ch == '7' || ch == '8' ||
+				    ch == '9')
+				{
+					if (exponent > (Long.MAX_VALUE - 9)/10)
+					{
+						// prevent overflow
+						return true;
+					}
+					exponent *= 10;
+					exponent += (ch - '0');
+					mode = Mode.EXPONENT;
+					return true;
+				}
+				if (mode == Mode.EXPONENT_FIRST)
+				{
+					throw new Error("junk");
+				}
+				mode = Mode.DONE;
+				return false;
+			}
+			throw new Error("junk");
+		}
+		public void feedString(String s)
+		{
+			int i;
+			for (i = 0; i < s.length(); i++)
+			{
+				char ch = s.charAt(i);
+				if (!feedChar(ch))
+				{
+					throw new Error("junk at end");
+				}
+			}
+		}
+	};
 	private static class StackElement {
 		private static enum Type {
 			DICT, ARRAY, FIRST
@@ -123,6 +451,7 @@ public class JAJ {
 	}
 	public static void parse(BufferedReader r, JAJHandler handler) throws IOException
 	{
+		ATOF atof = new ATOF();
 		ArrayList<StackElement> lastDictKeys = new ArrayList<StackElement>();
 		Enum expect = Expect.VALUE;
 		lastDictKeys.add(StackElement.newFirst());
@@ -143,7 +472,7 @@ public class JAJ {
 			{
 				if (ch != ',')
 				{
-					throw new RuntimeException("expected comma");
+					throw new RuntimeException("expected comma got " + ch);
 				}
 				String key = lastDictKeys.get(lastDictKeys.size()-1).key;
 				if (key != null)
@@ -351,15 +680,10 @@ public class JAJ {
 			                 ch == '4' || ch == '5' ||
 			                 ch == '6' || ch == '7' ||
 			                 ch == '8' || ch == '9' ||
-					 ch == '-'))
+					 ch == '-')) // FIXME +?
 			{
-				boolean is_negative = (ch == '-');
-				double num = 0;
-				int add_exponent = 0;
-				if (ch != '-')
-				{
-					num = (ch - '0');
-				}
+				atof.reset();
+				atof.feedChar(ch);
 				for (;;)
 				{
 					r.mark(1);
@@ -371,112 +695,15 @@ public class JAJ {
 						//throw new RuntimeException("invalid EOF"); // FIXME this is allowed
 					}
 					ch = (char)chi;
-					if (ch == '0' || ch == '1' ||
-			                    ch == '2' || ch == '3' ||
-			                    ch == '4' || ch == '5' ||
-			                    ch == '6' || ch == '7' ||
-			                    ch == '8' || ch == '9')
+					if (!atof.feedChar(ch))
 					{
-						num *= 10;
-						num += (ch - '0');
-						continue;
-					}
-					break;
-				}
-				if (ch == '.')
-				{
-					double divisor = 1;
-					for (;;)
-					{
-						r.mark(1);
-						chi = r.read();
-						if (chi < 0)
-						{
-							throw new RuntimeException("invalid EOF");
-						}
-						ch = (char)chi;
-						if (ch == '0' || ch == '1' ||
-						    ch == '2' || ch == '3' ||
-						    ch == '4' || ch == '5' ||
-						    ch == '6' || ch == '7' ||
-						    ch == '8' || ch == '9')
-						{
-							num *= 10;
-							num += (ch - '0');
-							add_exponent -= 1;
-							continue;
-						}
 						break;
 					}
-				}
-				if (ch == 'E' || ch == 'e')
-				{
-					boolean is_exp_negative = false;
-					int exponent = 0;
-					r.mark(1);
-					chi = r.read();
-					if (chi < 0)
-					{
-						throw new RuntimeException("invalid EOF");
-					}
-					ch = (char)chi;
-					if (ch == '+')
-					{
-						r.mark(1);
-						chi = r.read();
-						if (chi < 0)
-						{
-							throw new RuntimeException("invalid EOF");
-						}
-						ch = (char)chi;
-					}
-					else if (ch == '-')
-					{
-						is_exp_negative = true;
-						r.mark(1);
-						chi = r.read();
-						if (chi < 0)
-						{
-							throw new RuntimeException("invalid EOF");
-						}
-						ch = (char)chi;
-					}
-					if (ch != '0' && ch != '1' &&
-					    ch != '2' && ch != '3' &&
-					    ch != '4' && ch != '5' &&
-					    ch != '6' && ch != '7' &&
-					    ch != '8' && ch != '9')
-					{
-						throw new RuntimeException("invalid exponent");
-					}
-					for (;;)
-					{
-						exponent *= 10;
-						exponent += (ch - '0');
-						r.mark(1);
-						chi = r.read();
-						if (chi < 0)
-						{
-							break;
-							//throw new RuntimeException("invalid EOF"); // FIXME this is allowed
-						}
-						ch = (char)chi;
-						if (ch == '0' || ch == '1' ||
-						    ch == '2' || ch == '3' ||
-						    ch == '4' || ch == '5' ||
-						    ch == '6' || ch == '7' ||
-						    ch == '8' || ch == '9')
-						{
-							continue;
-						}
-						break;
-					}
-					num *= Math.pow(10, (is_exp_negative ? (-1) : (1)) * exponent + add_exponent);
 				}
 				r.reset();
 
 				String key = lastDictKeys.get(lastDictKeys.size()-1).key;
-				handler.handleNumber(key, is_negative ? (-num) : num);
+				handler.handleNumber(key, atof.end());
 				if (lastDictKeys.size() <= 1)
 				{
 					return;
