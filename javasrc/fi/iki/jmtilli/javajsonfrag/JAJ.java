@@ -451,9 +451,17 @@ public class JAJ {
 	}
 	public static void parse(BufferedReader r, JAJHandler handler) throws IOException
 	{
+		parse2(r, handler, false, false);
+	}
+	public static void parse2(BufferedReader r, JAJHandler handler, boolean allow_comments, boolean allow_trailing_comma) throws IOException
+	{
 		ATOF atof = new ATOF();
 		ArrayList<StackElement> lastDictKeys = new ArrayList<StackElement>();
 		Enum expect = Expect.VALUE;
+		boolean comment_seen_preliminary = false;
+		boolean c_comment_seen = false;
+		boolean c_comment_seen_star = false;
+		boolean cpp_comment_seen = false;
 		lastDictKeys.add(StackElement.newFirst());
 		for (;;)
 		{
@@ -464,6 +472,54 @@ public class JAJ {
 				throw new RuntimeException("invalid EOF");
 			}
 			char ch = (char)chi;
+			if (allow_comments)
+			{
+				if (ch == '/' && comment_seen_preliminary)
+				{
+					comment_seen_preliminary = false;
+					cpp_comment_seen = true;
+					continue;
+				}
+				if (ch == '*' && comment_seen_preliminary)
+				{
+					comment_seen_preliminary = false;
+					c_comment_seen = true;
+					continue;
+				}
+				if (ch == '/' && !c_comment_seen && !cpp_comment_seen && !comment_seen_preliminary)
+				{
+					comment_seen_preliminary = true;
+					continue;
+				}
+				if (comment_seen_preliminary)
+				{
+					throw new RuntimeException("not a comment");
+				}
+				comment_seen_preliminary = false;
+				if (c_comment_seen && ch == '*')
+				{
+					c_comment_seen_star = true;
+					continue;
+				}
+				if (c_comment_seen && c_comment_seen_star && ch == '/')
+				{
+					c_comment_seen = false;
+					continue;
+				}
+				c_comment_seen_star = false;
+				if (c_comment_seen)
+				{
+					continue;
+				}
+				if (cpp_comment_seen)
+				{
+					if (ch == '\n')
+					{
+						cpp_comment_seen = false;
+					}
+					continue;
+				}
+			}
 			if (ch == '\u0020' || ch == '\n' || ch == '\r' || ch == '\u0009')
 			{
 				continue;
@@ -501,7 +557,7 @@ public class JAJ {
 				expect = Expect.FIRST_VALUE;
 				continue;
 			}
-			if ((expect == Expect.COMMA || expect == Expect.FIRST_VALUE) && ch == ']')
+			if ((expect == Expect.COMMA || expect == Expect.FIRST_VALUE || (allow_trailing_comma && expect == Expect.VALUE)) && ch == ']')
 			{
 				StackElement elem = lastDictKeys.remove(lastDictKeys.size()-1);
 				if (elem.type != StackElement.Type.ARRAY)
@@ -524,7 +580,7 @@ public class JAJ {
 				expect = Expect.FIRST_KEY;
 				continue;
 			}
-			if ((expect == Expect.COMMA || expect == Expect.FIRST_KEY) && ch == '}')
+			if ((expect == Expect.COMMA || expect == Expect.FIRST_KEY || (allow_trailing_comma && expect == Expect.KEY)) && ch == '}')
 			{
 				// FIXME need to separate FIRST_KEY
 				StackElement elem = lastDictKeys.remove(lastDictKeys.size()-1);
