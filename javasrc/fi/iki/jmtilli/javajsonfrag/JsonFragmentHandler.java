@@ -9,6 +9,16 @@ public class JsonFragmentHandler implements JAJHandler {
 		JAJ.parse(r, whole);
 		return whole.obj;
 	}
+	public static JsonObject parseWhole2(BufferedReader r, boolean allow_comments, boolean allow_trailing_comma, boolean parse_end) throws IOException
+	{
+		WholeJsonHandler whole = new WholeJsonHandler();
+		JAJ.parse2(r, whole, allow_comments, allow_trailing_comma);
+		if (parse_end)
+		{
+			JAJ.parseEnd(r, whole, allow_comments);
+		}
+		return whole.obj;
+	}
 	private static class WholeJsonHandler extends JsonFragmentHandler {
 		private JsonObject obj = null;
 		public void startJsonDict(String dictKey)
