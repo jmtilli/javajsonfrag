@@ -13,12 +13,13 @@ public class Main {
 	{
 		final HashMap<Integer, Customer> customers =
 			new HashMap<Integer, Customer>();
+		JsonFragmentHandler handler;
 		if (args.length != 1)
 		{
 			throw new RuntimeException("usage: java Main f.json");
 		}
 		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(args[0])));
-		JAJ.parse(br, new JsonFragmentHandler() {
+		handler = new JsonFragmentHandler() {
 			public void startJsonDict(String dictKey)
 			{
 				if (is("customers", (String)null))
@@ -39,7 +40,9 @@ public class Main {
 					customers.put(c.customerId, c);
 				}
 			}
-		});
+		};
+		JAJ.parse2(br, handler, true, true);
+		JAJ.parseEnd(br, handler, true);
 		System.out.println(customers.get(1).name);
 		System.out.println(customers.get(2).name);
 	}

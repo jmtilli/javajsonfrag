@@ -453,6 +453,80 @@ public class JAJ {
 	{
 		parse2(r, handler, false, false);
 	}
+	public static void parseEnd(BufferedReader r, JAJHandler handler, boolean allow_comments) throws IOException
+	{
+		boolean comment_seen_preliminary = false;
+		boolean c_comment_seen = false;
+		boolean c_comment_seen_star = false;
+		boolean cpp_comment_seen = false;
+		for (;;)
+		{
+			int chi;
+			chi = r.read();
+			if (chi < 0)
+			{
+				if (comment_seen_preliminary || c_comment_seen)
+				{
+					throw new RuntimeException("unterminated comment start or comment");
+				}
+				return;
+			}
+			char ch = (char)chi;
+			if (allow_comments)
+			{
+				if (ch == '/' && comment_seen_preliminary)
+				{
+					comment_seen_preliminary = false;
+					cpp_comment_seen = true;
+					continue;
+				}
+				if (ch == '*' && comment_seen_preliminary)
+				{
+					comment_seen_preliminary = false;
+					c_comment_seen = true;
+					continue;
+				}
+				if (ch == '/' && !c_comment_seen && !cpp_comment_seen && !comment_seen_preliminary)
+				{
+					comment_seen_preliminary = true;
+					continue;
+				}
+				if (comment_seen_preliminary)
+				{
+					throw new RuntimeException("not a comment");
+				}
+				comment_seen_preliminary = false;
+				if (c_comment_seen && ch == '*')
+				{
+					c_comment_seen_star = true;
+					continue;
+				}
+				if (c_comment_seen && c_comment_seen_star && ch == '/')
+				{
+					c_comment_seen = false;
+					continue;
+				}
+				c_comment_seen_star = false;
+				if (c_comment_seen)
+				{
+					continue;
+				}
+				if (cpp_comment_seen)
+				{
+					if (ch == '\n')
+					{
+						cpp_comment_seen = false;
+					}
+					continue;
+				}
+			}
+			if (ch == '\u0020' || ch == '\n' || ch == '\r' || ch == '\u0009')
+			{
+				continue;
+			}
+			throw new RuntimeException("junk at file end");
+		}
+	}
 	public static void parse2(BufferedReader r, JAJHandler handler, boolean allow_comments, boolean allow_trailing_comma) throws IOException
 	{
 		ATOF atof = new ATOF();
